@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DOOM">
+<meta name="theme-color" content="#000000">
+<title>DOOM Web</title>
+<style>
+  :root { --bg:#0b0606; --panel:#1a0d0b; --fg:#f1e3d3; --dim:#a8907c; --accent:#d8371f; --accent2:#ffb347; --line:#3a201a; }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif; overflow:hidden;
+    touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+    -webkit-tap-highlight-color:transparent; overscroll-behavior:none; }
+  #stage { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#000; }
+  #screen { width:min(100vw, calc(100vh * 4 / 3)); width:min(100vw, calc(100dvh * 4 / 3)); aspect-ratio:4/3; image-rendering:pixelated;
+    image-rendering:crisp-edges; background:#000; display:block; outline:none; cursor:none; }
+  #overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:16px;
+    background:radial-gradient(ellipse at center, rgba(60,10,5,.92), rgba(5,2,2,.97)); overflow:auto; }
+  .card { width:min(760px,100%); background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:28px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+  h1 { margin:0 0 4px; font-size:44px; letter-spacing:6px; color:var(--accent);
+    text-shadow:0 2px 0 #5a0f05, 0 0 24px rgba(216,55,31,.45); font-weight:900; }
+  .sub { color:var(--dim); margin:0 0 20px; font-size:14px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  button, .filebtn { font:inherit; font-size:15px; font-weight:700; border-radius:8px; padding:11px 18px; cursor:pointer;
+    border:1px solid var(--line); background:#2a1612; color:var(--fg); }
+  button:hover, .filebtn:hover { border-color:var(--accent2); }
+  #start { background:var(--accent); border-color:var(--accent); color:#fff; min-width:160px; }
+  #start:disabled { opacity:.4; cursor:not-allowed; }
+  .filebtn input { display:none; }
+  #status { margin:14px 0 0; font-size:14px; color:var(--accent2); min-height:1.4em; }
+  #status.error { color:#ff6b5a; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:22px; }
+  .grid section { background:rgba(0,0,0,.25); border:1px solid var(--line); border-radius:8px; padding:14px 16px; }
+  .grid h2 { margin:0 0 8px; font-size:14px; color:var(--accent2); letter-spacing:1px; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  td { padding:3px 0; vertical-align:top; }
+  td:first-child { color:var(--dim); width:46%; padding-right:8px; }
+  kbd { font-family:ui-monospace,Consolas,monospace; font-size:12px; background:#2a1612; border:1px solid var(--line);
+    border-bottom-width:2px; border-radius:4px; padding:0 5px; }
+  .settings { margin-top:16px; display:flex; gap:12px; align-items:center; font-size:13px; color:var(--dim); flex-wrap:wrap; }
+  .settings input[type=range] { accent-color:var(--accent); }
+  #lockhint { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); background:rgba(0,0,0,.7);
+    color:var(--fg); padding:6px 12px; border-radius:6px; font-size:13px; pointer-events:none; }
+  #menubtn { position:fixed; left:max(12px, env(safe-area-inset-left)); top:max(12px, env(safe-area-inset-top));
+    width:44px; height:44px; padding:0; border-radius:10px; background:rgba(0,0,0,.55); color:var(--fg);
+    font-size:20px; border:1px solid rgba(255,255,255,.15); opacity:.6; }
+  #menubtn:hover { opacity:1; }
+  #padbadge { position:fixed; right:12px; top:12px; background:rgba(0,0,0,.7); color:var(--accent2);
+    padding:5px 10px; border-radius:6px; font-size:12px; pointer-events:none; }
+  #endmsg { white-space:pre-wrap; font-size:15px; margin:10px 0 18px; }
+  @media (max-width:520px) { .card { padding:18px; } h1 { font-size:32px; } }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="screen" width="320" height="200" tabindex="0"></canvas></div>
+<div id="lockhint" hidden>화면을 클릭하면 마우스로 조작할 수 있어요 · 메뉴: Esc 또는 ` (iPad) · ☰ 버튼</div>
+<div id="padbadge" hidden></div>
+<button id="menubtn" hidden aria-label="메뉴">☰</button>
+
+<div id="overlay">
+  <div class="card">
+    <h1>DOOM</h1>
+    <p class="sub">id Software linuxdoom-1.10 소스를 WebAssembly로 컴파일한 브라우저 버전</p>
+
+    <div id="startbox">
+      <div class="row">
+        <button id="start" disabled>게임 시작</button>
+        <label class="filebtn">WAD 파일 선택<input type="file" id="wadfile" accept=".wad,.WAD"></label>
+      </div>
+      <p id="status">WAD 파일 찾는 중…</p>
+    </div>
+
+    <div id="endbox" hidden>
+      <p id="endmsg"></p>
+      <button id="reload">다시 시작</button>
+    </div>
+
+    <div class="grid">
+      <section>
+        <h2>키보드 · 마우스</h2>
+        <table>
+          <tr><td>이동</td><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 방향키</td></tr>
+          <tr><td>회전</td><td>마우스 / <kbd>←</kbd><kbd>→</kbd></td></tr>
+          <tr><td>발사</td><td>마우스 왼쪽 / <kbd>Ctrl</kbd></td></tr>
+          <tr><td>문 열기·사용</td><td><kbd>E</kbd> / <kbd>Space</kbd> / 마우스 오른쪽</td></tr>
+          <tr><td>달리기</td><td><kbd>Shift</kbd> 누르고 있기</td></tr>
+          <tr><td>옆걸음 모드</td><td><kbd>Alt</kbd> + 회전</td></tr>
+          <tr><td>무기 바꾸기</td><td><kbd>1</kbd>–<kbd>7</kbd> / 마우스 휠</td></tr>
+          <tr><td>자동 지도</td><td><kbd>Tab</kbd></td></tr>
+          <tr><td>메뉴</td><td><kbd>Esc</kbd> 또는 <kbd>`</kbd> (Esc 없는 iPad 키보드) · 화면 왼쪽 위 ☰</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>게임패드 (Xbox · PlayStation · Switch Pro · MFi)</h2>
+        <table>
+          <tr><td>이동 / 옆걸음</td><td>왼쪽 스틱 (끝까지 밀면 달리기)</td></tr>
+          <tr><td>회전</td><td>오른쪽 스틱</td></tr>
+          <tr><td>발사</td><td>RT / R2 · X / □</td></tr>
+          <tr><td>사용 · 문 열기</td><td>A / ✕ · B / ○</td></tr>
+          <tr><td>달리기</td><td>LT / L2 · 왼쪽 스틱 누르기</td></tr>
+          <tr><td>무기 바꾸기</td><td>LB / RB (L1 / R1)</td></tr>
+          <tr><td>자동 지도</td><td>Y / △ · Back</td></tr>
+          <tr><td>메뉴</td><td>Start · 메뉴 안에서 A 선택, B 뒤로</td></tr>
+        </table>
+      </section>
+    </div>
+
+    <div class="settings">
+      <label>마우스 감도 <input type="range" id="sens" min="0.2" max="3" step="0.1"></label>
+      <span id="sensval"></span>
+      <button id="fullscreen" type="button">전체 화면</button>
+    </div>
+    <p class="sub" style="margin:14px 0 0">iPad: 블루투스 키보드·마우스(트랙패드)나 게임패드를 연결해서 플레이하세요. 게임패드는 버튼을 한 번 눌러야 인식돼요. Safari 공유 → "홈 화면에 추가"로 열면 전체 화면이 돼요.</p>
+  </div>
+</div>
+
+<script src="doom.js"></script>
+<script src="doom-shell.js"></script>
+</body>
+</html>

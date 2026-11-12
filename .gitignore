@@ -1,0 +1,5 @@
+# downloaded archives (Freedoom zip etc.)
+download/
+*.zip
+# local emscripten temp
+*.o
