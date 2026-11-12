@@ -2,7 +2,11 @@
 
 id Software의 `linuxdoom-1.10` 소스를 Emscripten으로 WebAssembly로 컴파일한 브라우저용 DOOM이에요.
 
-## 실행
+## 플레이
+
+온라인: https://gopchangman-collab.github.io/Doom_web.player/
+
+로컬: `play.bat` 더블클릭, 또는
 
 ```
 cd doom-web/dist
@@ -37,4 +41,5 @@ EMCC=emcc.exe bash build.sh
   - 수정한 파일: `d_main.c`, `d_net.c` (브라우저에 제어권 양보), `g_game.c` (WASD, 무기 순환, 마우스 Y축 이동 끔),
     `m_misc.c` (기본 키 설정), `m_menu.c` (마우스로 메뉴가 움직이지 않게), `r_*.c/h` (렌더링 한계치 확장), `w_wad.c` (`strupr` 이름 충돌)
 - `web/`: 페이지와 JS 셸 (입력, 게임패드, 효과음, MUS 음악 신시사이저, 세이브 저장)
-- `dist/`: 빌드 결과물 (이 폴더만 웹에 올리면 됨)
+- `dist/`: 빌드 결과물 (실제 게임 페이지)
+- `index.html`: GitHub Pages 루트에서 `dist/`로 이동시키는 페이지 (Pages 설정: main 브랜치 / root)
